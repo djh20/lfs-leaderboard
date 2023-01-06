@@ -103,8 +103,8 @@ export class InSimClient extends EventEmitter {
     this.socket?.destroy();
     this.socket = undefined;
 
-    // Connect in 2 seconds.
-    setTimeout(() => this.connect(), 2000);
+    // Connect in 1 second.
+    setTimeout(() => this.connect(), 1000);
   }
 
   private onConnect() {
