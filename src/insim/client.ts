@@ -4,7 +4,7 @@ import { isAsciiChar, stringToBuffer } from "../utils/string";
 import logger from "../utils/logger";
 import { InSimPacketType, InSimTinyPacketType } from "./packet";
 import { db } from "../database";
-import moment from "moment";
+import { createLeaderboard } from "./leaderboard";
 
 export declare interface InSimClient {
   on(event: "lap", listener: (lapTimeMs: number) => void): this;
@@ -55,111 +55,40 @@ export class InSimClient extends EventEmitter {
     });
   }
 
-  public async updateLeaderboard() {
+  public async updateLeaderboards() {
+    if (!this.socket) return;
     if (!this.racing) return;
     if (!this.vehicleCode) return;
     if (!this.trackCode) return;
-
-    const slots = 5;
-    const slotHeight = 7;
-
-    /**
-     * The horizontal margin around each slot.
-     */
-    const slotMargin = 1;
     
-    // Fetch relevent laps from database.
-    const laps = await db.lap.findMany({
+    // Fetch all laps on the same track from database.
+    const trackLaps = await db.lap.findMany({
       where: {
-        vehicleCode: this.vehicleCode,
         trackCode: this.trackCode
       },
       orderBy: {
         timeMs: "asc"
-      },
-      take: slots
+      }
     });
 
-    // We should never exceed 99 characters (1 null character).
-    const maxTextLength = 100;
-    
-    // Title
-    this.socket?.write(
-      Buffer.from([
-        3 + (maxTextLength/4), // 3 + TEXT_SIZE/4
-        InSimPacketType.ISP_BTN,
-        1, // non-zero (returned in IS_BTC and IS_BTT packets)
-        0, // connection to display the button (0 = local / 255 = all)
-
-        0, // button ID (0 to 239)
-        0, // Flags
-        0x41, // Button Style
-        0,
-
-        2,
-        20,
-        30,
-        10,
-
-        ...stringToBuffer("Lap Leaderboard", maxTextLength)
-      ])
+    // Additionally filter laps that were in the same vehicle.
+    const sameVehicleTrackLaps = trackLaps.filter(lap => 
+      lap.vehicleCode == this.vehicleCode
     );
     
-    // Background
-    this.socket?.write(
-      Buffer.from([
-        3 + (maxTextLength/4), // 3 + TEXT_SIZE/4
-        InSimPacketType.ISP_BTN,
-        1, // non-zero (returned in IS_BTC and IS_BTT packets)
-        0, // connection to display the button (0 = local / 255 = all)
+    const leaderboardOneInfo = createLeaderboard(this.socket, {
+      title: "Fastest Laps (Same Car)",
+      slots: 5,
+      laps: sameVehicleTrackLaps
+    });
 
-        1, // button ID (0 to 239)
-        0, // Flags
-        32, // Button Style
-        0,
-
-        2,
-        20,
-        30,
-        10+(slots*slotHeight)+2, // Calculate height depending on number of slots.
-
-        ...Buffer.alloc(maxTextLength)
-      ])
-    );
-    
-    // Create a button for each slot.
-    for (let i = 0; i < slots; i++) {
-      let text = `${i+1}. `;
-
-      if (i < laps.length) {
-        const lap = laps[i];
-        const timeStr = moment(lap.timeMs).format("m:ss.SS");
-        text += `${lap.playerName}  ${timeStr}`;
-      } else {
-        text += "----  ----"
-      }
-      
-      this.socket?.write(
-        Buffer.from([
-          3 + (maxTextLength/4), // 3 + TEXT_SIZE/4
-          InSimPacketType.ISP_BTN,
-          1, // non-zero (returned in IS_BTC and IS_BTT packets)
-          0, // connection to display the button (0 = local / 255 = all)
-
-          i+2, // button ID (0 to 239)
-          0, // Flags
-          99, // Button Style
-          0,
-
-          2+slotMargin,
-          30+(i*slotHeight),
-          30-(slotMargin*2),
-          slotHeight,
-
-          ...stringToBuffer(text, maxTextLength)
-        ])
-      );
-    }
+    const leaderboardTwoInfo = createLeaderboard(this.socket, {
+      title: "Fastest Laps (All Cars)",
+      slots: 5,
+      laps: trackLaps,
+      yOffset: leaderboardOneInfo.height + 2,
+      firstButtonId: leaderboardOneInfo.nextButtonId
+    });
   }
 
   private reconnect() {
@@ -248,14 +177,14 @@ export class InSimClient extends EventEmitter {
           this.playerId = playerId;
           this.playerName = playerName;
           this.vehicleCode = vehicleCode;
-          this.updateLeaderboard();
+          this.updateLeaderboards();
         }
       } else if (packetType == InSimPacketType.ISP_RST) { // Race start
         const trackCode = String.fromCharCode(...packet.slice(8, 14)).replace(/\0/g, '');
         logger.info(`${this.playerName} is on track: ${trackCode}`);
         this.trackCode = trackCode;
         this.racing = true;
-        this.updateLeaderboard();
+        this.updateLeaderboards();
 
       } else if (packetType == InSimPacketType.ISP_LAP) { // Lap completed
         const playerId = packet[3];

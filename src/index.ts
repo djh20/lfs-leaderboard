@@ -34,9 +34,9 @@ if (config) {
         }
       });
 
-      // Update the leaderboard for each client.
-      // TODO: Only call updateLeaderboard on clients that actually need to be updated.
-      clients.forEach(c => c.updateLeaderboard());
+      // Update the leaderboards for each client.
+      // TODO: Only call updateLeaderboards on clients that actually need to be updated.
+      clients.forEach(c => c.updateLeaderboards());
     });
     
     // Attempt to connect (reconnecting will be handled automatically).
