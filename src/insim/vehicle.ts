@@ -1,8 +1,9 @@
 import { db } from "../database";
 import axios from "axios";
 import logger from "../utils/logger";
+import { VehicleMod } from "@prisma/client";
 
-let officialVehicleNames = new Map([
+let officialVehicleNames = new Map<string, string>([
   ["UF1", "UF 1000"],
   ["XFG", "XF GTI"],
   ["XRG", "XR GT"],
@@ -25,18 +26,32 @@ let officialVehicleNames = new Map([
   ["BF1", "BMW SAUBER F1.06"],
 ]);
 
+let vehicleModCache = new Map<string, VehicleMod>();
+
 export async function getVehicleName(code: string): Promise<string> {
   const isOfficialVehicle = officialVehicleNames.has(code);
   if (isOfficialVehicle) return officialVehicleNames.get(code)!;
 
-  const mod = await db.vehicleMod.findUnique({ where: { id: code } });
+  //const mod = await db.vehicleMod.findUnique({ where: { id: code } });
+  const mod = await getVehicleModInfo(code);
   if (mod) return mod.name;
 
   return code;
 }
 
-export async function updateVehicleModInfo(code: string) {
+export async function getVehicleModInfo(code: string): Promise<VehicleMod | null> {
+  const cachedMod = vehicleModCache.get(code);
+  if (cachedMod) return cachedMod;
+
   const mod = await db.vehicleMod.findUnique({ where: { id: code } });
+  if (!mod) return null;
+
+  vehicleModCache.set(code, mod);
+  return mod;
+}
+
+export async function updateVehicleModInfo(code: string) {
+  let mod = await db.vehicleMod.findUnique({ where: { id: code } });
   if (mod) {
     const msSinceLastFetch = Date.now() - mod.fetchedAt.getTime();
 
@@ -66,7 +81,7 @@ export async function updateVehicleModInfo(code: string) {
 
   if (!vehicleName) return;
 
-  await db.vehicleMod.upsert({
+  mod = await db.vehicleMod.upsert({
     where: {
       id: code
     },
@@ -78,4 +93,7 @@ export async function updateVehicleModInfo(code: string) {
       name: vehicleName
     }
   });
+
+  if (!mod) return;
+  vehicleModCache.set(code, mod);
 }
