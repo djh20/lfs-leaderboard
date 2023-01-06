@@ -1,0 +1,22 @@
+{
+  "name": "lfs-leaderboard",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "node dist/index.js",
+    "compile": "tsc",
+    "compile:watch": "tsc -w"
+  },
+  "author": "djh20",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^18.11.18",
+    "prisma": "^4.8.1",
+    "typescript": "^4.9.4"
+  },
+  "dependencies": {
+    "@prisma/client": "^4.8.1",
+    "moment": "^2.29.4"
+  }
+}
