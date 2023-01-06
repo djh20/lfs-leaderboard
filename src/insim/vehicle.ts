@@ -90,7 +90,8 @@ export async function updateVehicleModInfo(code: string) {
       name: vehicleName
     },
     update: {
-      name: vehicleName
+      name: vehicleName,
+      fetchedAt: new Date(Date.now())
     }
   });
 
