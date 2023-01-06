@@ -3,4 +3,5 @@ dist/
 config.json
 .env
 *.db
+*.db-journal
 prisma/migrations/
