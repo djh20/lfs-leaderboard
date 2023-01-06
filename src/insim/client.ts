@@ -50,6 +50,7 @@ export class InSimClient extends EventEmitter {
     this.socket.on("error", this.onError.bind(this));
     this.socket.on("close", this.onClose.bind(this));
 
+    this.socket.setTimeout(2000, () => this.socket?.destroy());
     this.socket.connect({
       host: this.definition.host,
       port: this.definition.port || 29999
@@ -108,6 +109,7 @@ export class InSimClient extends EventEmitter {
 
   private onConnect() {
     logger.info(`Connected to ${this.definition.host}`);
+    this.socket?.setTimeout(0);
 
     // Send init packet to initialize the InSim system.
     this.socket?.write(
