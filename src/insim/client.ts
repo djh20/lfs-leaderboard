@@ -5,6 +5,7 @@ import logger from "../utils/logger";
 import { InSimPacketType, InSimTinyPacketType } from "./packet";
 import { db } from "../database";
 import { createLeaderboard } from "./leaderboard";
+import { updateVehicleModInfo } from "./vehicle";
 
 export declare interface InSimClient {
   on(event: "lap", listener: (lapTimeMs: number) => void): this;
@@ -76,18 +77,20 @@ export class InSimClient extends EventEmitter {
       lap.vehicleCode == this.vehicleCode
     );
     
-    const leaderboardOneInfo = createLeaderboard(this.socket, {
+    const leaderboardOneInfo = await createLeaderboard(this.socket, {
       title: "Fastest Laps (Same Car)",
-      slots: 5,
-      laps: sameVehicleTrackLaps
+      slots: 3,
+      laps: sameVehicleTrackLaps,
+      showVehicle: false
     });
 
-    const leaderboardTwoInfo = createLeaderboard(this.socket, {
+    const leaderboardTwoInfo = await createLeaderboard(this.socket, {
       title: "Fastest Laps (All Cars)",
       slots: 5,
       laps: trackLaps,
       yOffset: leaderboardOneInfo.height + 2,
-      firstButtonId: leaderboardOneInfo.nextButtonId
+      firstButtonId: leaderboardOneInfo.nextButtonId,
+      showVehicle: true
     });
   }
 
@@ -157,26 +160,28 @@ export class InSimClient extends EventEmitter {
           const playerName = String.fromCharCode(...packet.slice(8, 32)).replace(/\0/g, '');
           const vehicleId = packet.slice(40, 43);
 
-          let vehicleCode = "";
+          this.playerId = playerId;
+          this.playerName = playerName;
 
           // Determine if vehicle is official or modded.
-          if (vehicleId.every(c => isAsciiChar(c))) {
+          const vehicleIsOfficial = vehicleId.every(c => isAsciiChar(c));
+
+          if (vehicleIsOfficial) {
             // Official
-            vehicleCode = String.fromCharCode(...vehicleId).replace(/\0/g, '');
+            this.vehicleCode = String.fromCharCode(...vehicleId).replace(/\0/g, '');
 
           } else { 
             // Mod
-            vehicleCode = vehicleId.reverse().map(v => {
+            this.vehicleCode = vehicleId.reverse().map(v => {
               let hex = v.toString(16).toUpperCase();
               if (hex.length == 1) hex = "0" + hex;
               return hex;
             }).join("");
+
+            updateVehicleModInfo(this.vehicleCode);
           }
 
-          logger.info(`${playerName} selected vehicle: ${vehicleCode}`);
-          this.playerId = playerId;
-          this.playerName = playerName;
-          this.vehicleCode = vehicleCode;
+          logger.info(`${playerName} selected vehicle: ${this.vehicleCode}`);
           this.updateLeaderboards();
         }
       } else if (packetType == InSimPacketType.ISP_RST) { // Race start

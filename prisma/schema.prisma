@@ -15,3 +15,9 @@ model Lap {
   timeMs Int
   achievedAt DateTime @default(now())
 }
+
+model VehicleMod {
+  id String @id
+  name String
+  fetchedAt DateTime @default(now())
+}
