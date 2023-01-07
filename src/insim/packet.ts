@@ -98,3 +98,11 @@ export enum InSimTinyPacketType {
 	TINY_MAL,		// 27 - info request	: send IS_MAL listing the currently allowed mods
 }
 
+export enum InSimMessageSound {
+	SND_SILENT,
+	SND_MESSAGE,
+	SND_SYSMESSAGE,
+	SND_INVALIDKEY,
+	SND_ERROR,
+	SND_NUM
+}

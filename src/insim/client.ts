@@ -2,7 +2,7 @@ import EventEmitter from "events";
 import { Socket } from "net";
 import { isAsciiChar, stringToBuffer } from "../utils/string";
 import logger from "../utils/logger";
-import { InSimPacketType, InSimTinyPacketType } from "./packet";
+import { InSimMessageSound, InSimPacketType, InSimTinyPacketType } from "./packet";
 import { db } from "../database";
 import { createLeaderboard } from "./leaderboard";
 import { updateVehicleModInfo } from "./vehicle";
@@ -93,6 +93,18 @@ export class InSimClient extends EventEmitter {
       firstButtonId: leaderboardOneInfo.nextButtonId,
       showVehicle: true
     });
+  }
+
+  public sendMessage(msg: string) {
+    this.socket?.write(
+      Buffer.from([
+        33,
+        InSimPacketType.ISP_MSL,
+        InSimMessageSound.SND_SYSMESSAGE,
+        2,
+        ...stringToBuffer(msg, 128)
+      ])
+    );
   }
 
   private reconnect() {

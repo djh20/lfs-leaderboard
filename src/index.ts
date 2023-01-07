@@ -2,7 +2,10 @@ import path from "path";
 import { Config, loadConfig } from "./config";
 import { db } from "./database";
 import { InSimClient } from "./insim/client";
+import { getTrackName } from "./insim/track";
+import { getVehicleName } from "./insim/vehicle";
 import { Nullable } from "./utils/nullable";
+import { formatLapTime } from "./utils/time";
 
 const { version } = require("../package.json");
 
@@ -34,9 +37,22 @@ if (config) {
         }
       });
 
-      // Update the leaderboards for each client.
-      // TODO: Only call updateLeaderboards on clients that actually need to be updated.
-      clients.forEach(c => c.updateLeaderboards());
+      const formattedLapTime = formatLapTime(lapTimeMs);
+      const vehicleName = await getVehicleName(client.vehicleCode);
+      const trackName = getTrackName(client.trackCode);
+
+      client.updateLeaderboards();
+
+      clients.forEach(otherClient => {
+        if (otherClient == client) return;
+
+        // Update the leaderboards for each client.
+        otherClient.updateLeaderboards();
+        
+        otherClient.sendMessage(`
+          ${client.playerName} got ${formattedLapTime} on ${trackName} (${vehicleName})
+        `);
+      });
     });
     
     // Attempt to connect (reconnecting will be handled automatically).

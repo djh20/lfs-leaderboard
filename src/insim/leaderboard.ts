@@ -1,7 +1,7 @@
 import { Lap } from "@prisma/client";
-import moment from "moment";
 import { Socket } from "net";
 import { stringToBuffer } from "../utils/string";
+import { formatLapTime } from "../utils/time";
 import { InSimPacketType } from "./packet";
 import { getVehicleName } from "./vehicle";
 
@@ -82,7 +82,7 @@ export async function createLeaderboard(socket: Socket, options: LeaderboardOpti
 
     const lap = options.laps[i];
     const playerText = `${i+1}. ${lap.playerName}`;
-    const timeText = moment(lap.timeMs).format("m:ss.SS");
+    const timeText = formatLapTime(lap.timeMs);
 
     // Player name
     socket.write(
