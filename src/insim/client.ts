@@ -2,7 +2,7 @@ import EventEmitter from "events";
 import { Socket } from "net";
 import { isAsciiChar, stringToBuffer } from "../utils/string";
 import logger from "../utils/logger";
-import { InSimBfnPacketType, InSimMessageSound, InSimPacketType, InSimTinyPacketType } from "./packet";
+import { InSimBfnPacketType, InSimMessageSound, InSimPacketType, InSimPenaltyReason, InSimTinyPacketType } from "./packet";
 import { db } from "../database";
 import { createLeaderboard } from "./leaderboard";
 import { updateVehicleModInfo } from "./vehicle";
@@ -24,6 +24,7 @@ export class InSimClient extends EventEmitter {
   public trackCode?: string;
   public racing: boolean = false;
 
+  private ignoreLap: boolean = false;
   private socket?: Socket;
   
   /**
@@ -32,6 +33,7 @@ export class InSimClient extends EventEmitter {
    * message).
    */
   private dataBuffer: number[] = [];
+  
 
   constructor(definition: InSimClientDefinition) {
     super();
@@ -179,6 +181,7 @@ export class InSimClient extends EventEmitter {
 
           this.playerId = playerId;
           this.playerName = playerName;
+          this.ignoreLap = false;
 
           // Determine if vehicle is official or modded.
           const vehicleIsOfficial = vehicleId.every(c => isAsciiChar(c));
@@ -206,20 +209,27 @@ export class InSimClient extends EventEmitter {
         logger.info(`${this.playerName} is on track: ${trackCode}`);
         this.trackCode = trackCode;
         this.racing = true;
+        this.ignoreLap = false;
         this.updateLeaderboards();
 
       } else if (packetType == InSimPacketType.ISP_LAP) { // Lap completed
         const playerId = packet[3];
         if (playerId == this.playerId) {
-          const lapTimeData = Uint8Array.from(packet.slice(4, 8)).buffer;
-          const lapTimeMs = new Uint32Array(lapTimeData)[0];
+          if (this.ignoreLap) {
+            this.sendMessage("Lap ignored due to false start");
+            this.ignoreLap = false;
 
-          // Lap time must be below 1 hour to be considered valid. The main reason for
-          // this is that the game reports a lap time of 1 hour when exiting the pits
-          // on practice mode. Futhermore, the formatLapTime function doesn't correctly
-          // display times above 1 hour.
-          if (lapTimeMs < 1000 * 60 * 60) {
-            this.emit("lap", lapTimeMs);
+          } else {
+            const lapTimeData = Uint8Array.from(packet.slice(4, 8)).buffer;
+            const lapTimeMs = new Uint32Array(lapTimeData)[0];
+
+            // Lap time must be below 1 hour to be considered valid. The main reason for
+            // this is that the game reports a lap time of 1 hour when exiting the pits
+            // on practice mode. Futhermore, the formatLapTime function doesn't correctly
+            // display times above 1 hour.
+            if (lapTimeMs < 1000 * 60 * 60) {
+              this.emit("lap", lapTimeMs);
+            }
           }
         }
 
@@ -229,6 +239,18 @@ export class InSimClient extends EventEmitter {
         if (bfnPacketType == InSimBfnPacketType.BFN_REQUEST) { // Receive request (SHIFT+B)
           // Send leaderboards to client.
           this.updateLeaderboards();
+        }
+
+      } else if (packetType == InSimPacketType.ISP_PEN) { // Penalty
+        const playerId = packet[3];
+        const oldPen = packet[4];
+        const reason = packet[6];
+
+        if (playerId == this.playerId && 
+          oldPen == 0 && 
+          reason == InSimPenaltyReason.PENR_FALSE_START
+        ) {
+          this.ignoreLap = true;
         }
 
       } else if (packetType == InSimPacketType.ISP_TINY) {
@@ -244,6 +266,7 @@ export class InSimClient extends EventEmitter {
         } else if (tinyPacketType == InSimTinyPacketType.TINY_REN) { // Race end
           // Clear all buttons
           this.racing = false;
+          this.ignoreLap = false;
           this.socket?.write(
             Buffer.from([
               2,
