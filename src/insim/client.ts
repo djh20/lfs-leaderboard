@@ -62,6 +62,7 @@ export class InSimClient extends EventEmitter {
     if (!this.racing) return;
     if (!this.vehicleCode) return;
     if (!this.trackCode) return;
+    if (!this.playerName) return;
     
     // Fetch all laps on the same track from database.
     const trackLaps = await db.lap.findMany({
@@ -82,7 +83,8 @@ export class InSimClient extends EventEmitter {
       title: "Fastest Laps (Same Car)",
       slots: 3,
       laps: sameVehicleTrackLaps,
-      showVehicle: false
+      showVehicle: false,
+      playerToHighlight: this.playerName
     });
 
     const leaderboardTwoInfo = await createLeaderboard(this.socket, {
@@ -91,7 +93,8 @@ export class InSimClient extends EventEmitter {
       laps: trackLaps,
       yOffset: leaderboardOneInfo.height + 2,
       firstButtonId: leaderboardOneInfo.nextButtonId,
-      showVehicle: true
+      showVehicle: true,
+      playerToHighlight: this.playerName
     });
   }
 

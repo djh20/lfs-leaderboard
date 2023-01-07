@@ -15,6 +15,7 @@ interface LeaderboardOptions {
   yOffset?: number;
   firstButtonId?: number;
   showVehicle: boolean;
+  playerToHighlight: string;
 }
 
 interface LeaderboardInfo {
@@ -82,6 +83,7 @@ export async function createLeaderboard(socket: Socket, options: LeaderboardOpti
 
     const lap = options.laps[i];
     const playerText = `${i+1}. ${lap.playerName}`;
+    const playerTextColor = (lap.playerName == options.playerToHighlight) ? 3 : 0;
     const timeText = formatLapTime(lap.timeMs);
 
     // Player name
@@ -89,7 +91,7 @@ export async function createLeaderboard(socket: Socket, options: LeaderboardOpti
       createButton({
         id: nextButtonId++,
         text: playerText,
-        style: 64 + 3,
+        style: 64 + playerTextColor,
         x: slotX,
         y: slotY + 1,
         width: slotWidth,
