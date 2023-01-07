@@ -2,7 +2,7 @@ import EventEmitter from "events";
 import { Socket } from "net";
 import { isAsciiChar, stringToBuffer } from "../utils/string";
 import logger from "../utils/logger";
-import { InSimMessageSound, InSimPacketType, InSimTinyPacketType } from "./packet";
+import { InSimBfnPacketType, InSimMessageSound, InSimPacketType, InSimTinyPacketType } from "./packet";
 import { db } from "../database";
 import { createLeaderboard } from "./leaderboard";
 import { updateVehicleModInfo } from "./vehicle";
@@ -135,7 +135,7 @@ export class InSimClient extends EventEmitter {
         0, // Zero
 
         0, 0, // Port for UDP replies from LFS (0 to 65535)
-        0, 0, // Bit flags for options
+        4, 0, // Bit flags for options
 
         9, // The INSIM_VERSION used by your program
         0, // Special host message prefix character
@@ -217,6 +217,14 @@ export class InSimClient extends EventEmitter {
 
           logger.info(`${this.playerName} got a lap time of ${lapTimeSeconds}s`);
           this.emit("lap", lapTimeMs);
+        }
+
+      } else if (packetType == InSimPacketType.ISP_BFN) { // Buttons request
+        const bfnPacketType: InSimBfnPacketType = packet[3];
+
+        if (bfnPacketType == InSimBfnPacketType.BFN_REQUEST) { // Receive request (SHIFT+B)
+          // Send leaderboards to client.
+          this.updateLeaderboards();
         }
 
       } else if (packetType == InSimPacketType.ISP_TINY) {
