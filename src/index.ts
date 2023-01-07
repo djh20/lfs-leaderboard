@@ -4,6 +4,7 @@ import { db } from "./database";
 import { InSimClient } from "./insim/client";
 import { getTrackName } from "./insim/track";
 import { getVehicleName } from "./insim/vehicle";
+import logger from "./utils/logger";
 import { Nullable } from "./utils/nullable";
 import { formatLapTime } from "./utils/time";
 
@@ -40,6 +41,8 @@ if (config) {
       const formattedLapTime = formatLapTime(lapTimeMs);
       const vehicleName = await getVehicleName(client.vehicleCode);
       const trackName = getTrackName(client.trackCode);
+
+      logger.info(`${client.playerName} got a lap time of ${formattedLapTime}`);
 
       client.updateLeaderboards();
 

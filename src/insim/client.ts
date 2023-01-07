@@ -213,10 +213,14 @@ export class InSimClient extends EventEmitter {
         if (playerId == this.playerId) {
           const lapTimeData = Uint8Array.from(packet.slice(4, 8)).buffer;
           const lapTimeMs = new Uint32Array(lapTimeData)[0];
-          const lapTimeSeconds = lapTimeMs/1000;
 
-          logger.info(`${this.playerName} got a lap time of ${lapTimeSeconds}s`);
-          this.emit("lap", lapTimeMs);
+          // Lap time must be below 1 hour to be considered valid. The main reason for
+          // this is that the game reports a lap time of 1 hour when exiting the pits
+          // on practice mode. Futhermore, the formatLapTime function doesn't correctly
+          // display times above 1 hour.
+          if (lapTimeMs < 1000 * 60 * 60) {
+            this.emit("lap", lapTimeMs);
+          }
         }
 
       } else if (packetType == InSimPacketType.ISP_BFN) { // Buttons request
