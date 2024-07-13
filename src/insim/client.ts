@@ -25,6 +25,7 @@ export class InSimClient extends EventEmitter {
   public racing: boolean = false;
 
   private ignoreLap: boolean = false;
+  private watchingReplay: boolean = false;
   private socket?: Socket;
   
   /**
@@ -214,7 +215,7 @@ export class InSimClient extends EventEmitter {
 
       } else if (packetType == InSimPacketType.ISP_LAP) { // Lap completed
         const playerId = packet[3];
-        if (playerId == this.playerId) {
+        if (playerId == this.playerId && !this.watchingReplay) {
           if (this.ignoreLap) {
             this.sendMessage("Lap ignored due to false start");
             this.ignoreLap = false;
@@ -233,6 +234,9 @@ export class InSimClient extends EventEmitter {
           }
         }
 
+      } else if (packetType == InSimPacketType.ISP_STA) {
+        this.watchingReplay = (packet[8] & 0x02) > 0;
+      
       } else if (packetType == InSimPacketType.ISP_BFN) { // Buttons request
         const bfnPacketType: InSimBfnPacketType = packet[3];
 
