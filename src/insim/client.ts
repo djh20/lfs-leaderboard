@@ -205,6 +205,13 @@ export class InSimClient extends EventEmitter {
           logger.info(`${playerName} selected vehicle: ${this.vehicleCode}`);
           this.updateLeaderboards();
         }
+      
+      } else if (packetType == InSimPacketType.ISP_CPR) { // Player rename
+        const playerName = String.fromCharCode(...packet.slice(4, 28)).replace(/\0/g, '');
+        logger.info(`${this.playerName} changed their name to ${playerName}`);
+
+        this.playerName = playerName;
+        
       } else if (packetType == InSimPacketType.ISP_RST) { // Race start
         const trackCode = String.fromCharCode(...packet.slice(8, 14)).replace(/\0/g, '');
         logger.info(`${this.playerName} is on track: ${trackCode}`);
